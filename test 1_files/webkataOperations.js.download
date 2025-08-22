@@ -1,0 +1,940 @@
+const commonManager = {
+	netEmail: false,
+	netName: false,
+	netMobile: false
+};
+
+const sidebar = (function sidebar() {
+  const menuList = '#sidebar';
+  const toggleicon = '#sidebarToggle .material-icons';
+  const collapseClass = 'sidebar-collapse';
+  const activeClass = 'active';
+  const EventMenuOpened = 'shown.bs.collapse';
+  const EventMenuClosed = 'hidden.bs.collapse';
+
+  function handleMobileUI() {
+    $(menuList).on(EventMenuClosed, () => $(toggleicon).html('menu'));
+    $(menuList).on(EventMenuOpened, () => $(toggleicon).html('close'));
+  }
+
+  function toggleSidebar() {
+    $(menuList).hover(() => $(menuList).toggleClass(collapseClass));
+  }
+
+  const init = () => {
+    handleMobileUI();
+    toggleSidebar();
+  };
+
+  return { init };
+}());
+
+class Codesk{
+
+  initializeEditors(){
+    try{
+      for(let eachFile in manager.sandboxInfo.files){
+        manager.sandboxInfo.files[eachFile].editorInstance = ace.edit(eachFile);
+        manager.sandboxInfo.files[eachFile].editorInstance.setValue(manager.sandboxInfo.files[eachFile].code);
+        manager.sandboxInfo.files[eachFile].editorInstance.setOptions({
+          fontSize : 16,
+          wrap : true,
+          showGutter : true,
+          showLineNumbers : true,
+          showPrintMargin : false,
+          scrollPastEnd : true
+        });
+      }
+
+      for(let eachFile in manager.sandboxInfo.files){
+        import("https://unpkg.com/ace-builds@1.4.8/src-min-noconflict/theme-monokai.js").then(function(currentTheme){
+          manager.sandboxInfo.files[eachFile].editorInstance.setTheme("ace/theme/monokai");
+        });
+        import("https://unpkg.com/ace-builds@1.4.8/src-min-noconflict/ext-modelist.js").then(function(){
+          let modelist = ace.require("ace/ext/modelist");
+          let mode = modelist.getModeForPath(eachFile).mode;
+          manager.sandboxInfo.files[eachFile].editorInstance.session.setMode(mode);
+          manager.sandboxInfo.files[eachFile].editorInstance.setReadOnly(manager.sandboxInfo.files[eachFile].restrictEdit)
+        });
+        // new AceScrollbars(manager.sandboxInfo.files[eachFile].editorInstance);
+      }
+    }
+    catch(error){
+      // console.log(error);
+    }
+  }
+
+
+  initializeBundler(selectedTemplate, questionTemplate){
+    try{
+      const Manager = window.sandpack.Manager;
+      let template = {};
+      if(!questionTemplate){
+        template = this.getTemplate(selectedTemplate);
+      }
+      else{
+        template = questionTemplate;
+      }
+      if(selectedTemplate === "static"){
+        let frameElement = this.getStaticFrame(template.files);
+        let manager = {
+          sandboxInfo: {
+            files: template.files,
+            entry: template.entry
+          },
+          updatePreview: this.staticUpdate,
+          iframe: frameElement
+        }
+        window.manager = manager;
+      }
+      else{
+        let manager = new Manager(
+          '#preview',
+          {
+            files: template.files,
+            dependencies: template.dependencies,
+            entry: template.entry,
+            showOpenInCodeSandbox: false
+          },
+          {
+            bundlerURL: "https://sandbox.codingpuppet.com"
+          }
+        );
+        window.manager = manager;
+      }
+    }
+    catch(error){
+      // console.log(error);
+    }
+  }
+
+  getStaticFrame(fileObject){
+    let frameElement = document.createElement("iframe");
+    frameElement.style.border = 0;
+    frameElement.style.width = "100%";
+    frameElement.style.height = "100%";
+    frameElement.style.overflow = "hidden";
+    // frameElement.setAttribute("sandbox", "allow-forms allow-modals allow-popups allow-presentation allow-scripts allow-same-origin");
+    try{
+      $("#preview-container").html(frameElement);
+      let docObj = frameElement.contentWindow.document;
+      docObj.open();
+      if("/index.html" in  fileObject){
+        docObj.write(fileObject["/index.html"].code);
+      }
+      if("/index.css" in fileObject){
+        docObj.write("<style>" + fileObject["/index.css"].code + "</style>");
+      }
+      if("/index.js" in fileObject){
+        docObj.write("<script>" + fileObject["/index.js"].code + "</script>");
+      }
+      docObj.close();
+    }
+    catch(error){
+      // console.log(error);
+    }
+    return frameElement;
+  }
+
+  staticUpdate(sandboxInfo){
+    let fileObject = sandboxInfo.files;
+    let frameElement = document.createElement("iframe");
+    frameElement.style.border = 0;
+    frameElement.style.width = "100%";
+    frameElement.style.height = "100%";
+    frameElement.style.overflow = "hidden";
+    // frameElement.setAttribute("sandbox", "allow-forms allow-modals allow-same-origin allow-popups allow-presentation allow-scripts");
+    try{
+      $("#preview-container").html(frameElement);
+      let docObj = frameElement.contentWindow.document;
+      docObj.open();
+      if("/index.html" in  fileObject){
+        docObj.write(fileObject["/index.html"].code);
+      }
+      if("/index.css" in fileObject){
+        docObj.write("<style>" + fileObject["/index.css"].code + "</style>");
+      }
+      if("/index.js" in fileObject){
+        docObj.write("<script>" + fileObject["/index.js"].code + "</script>");
+      }
+      docObj.close();
+    }
+    catch(error){
+      // console.log(error);
+    }
+    return frameElement;
+  }
+
+  getTemplate(template){
+    let templateObject = {};
+    try{
+      templateObject = {
+        react: {
+          dependencies: {
+            "react": "^16.8.6",
+            "react-dom": "^16.8.6",
+            "react-scripts": "3.0.1"
+          },
+          files: {
+            "/src/index.js": {
+              code: 'import React from "react";\nimport ReactDOM from "react-dom";\n\nimport App from "./App";\n\nconst rootElement = document.getElementById("root");\nReactDOM.render(\n    <React.StrictMode>\n    <App />\n    </React.StrictMode>,\n    rootElement\n);'
+            },
+            "/src/App.js": {
+              code: 'import React from "react";\nimport "./styles.css";\n\nexport default function App() {\n  let greetingsBy = "GUVI";\n  return (\n    <div className="App">\n        <h1>Hello From {greetingsBy}</h1>\n        <h2>Start Editing see the changes</h2>\n    </div>\n  );\n}'
+            },
+            "/src/styles.css": {
+              code: '.App {    font-family: sans-serif;    text-align: center;}'
+            },
+            "/public/index.html": {
+              code: '<!DOCTYPE html>\n<html lang="en">\n\n  <head>\n    <meta charset="utf-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">\n    <meta name="theme-color" content="#000000">\n    <link rel="manifest" href="%PUBLIC_URL%/manifest.json">\n    <link rel="shortcut icon" href="%PUBLIC_URL%/favicon.ico">\n    <title>React App</title>\n </head>\n\n <body>\n    <noscript>\n        You need to enable JavaScript to run this app.\n    </noscript>\n    <div id="root"></div>\n </body>\n\n</html>'
+            }
+          },
+          entry: "/src/index.js"
+        },
+        static: {
+          dependencies: {
+
+          },
+          files: {
+            "/index.html": {
+              code: '<!DOCTYPE html>\n<html lang="en">\n  <head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <meta http-equiv="X-UA-Compatible" content="ie=edge">\n    <title>Static Template</title>\n  </head>\n  <body>\n    <h1>Hello from GUVI</h1>\n  </body>\n</html>',
+              name: "HTML",
+              editorInstance: false
+            },
+
+            "/index.css": {
+              code: "",
+              name: "CSS",
+              editorInstance: false
+            },
+            "/index.js": {
+              code: "",
+              name: "JavaScript",
+              editorInstance: false
+            }
+          },
+          entry: "/index.html"
+        },
+        angular: {
+          dependencies: {
+            "@angular/animations": "^9.0.0",
+            "@angular/common": "^9.0.0",
+            "@angular/compiler": "^9.0.0",
+            "@angular/core": "^9.0.0",
+            "@angular/forms": "^9.0.0",
+            "@angular/platform-browser": "^9.0.0",
+            "@angular/platform-browser-dynamic": "^9.0.0",
+            "@angular/router": "^9.0.0",
+            "core-js": "3.6.4",
+            "rxjs": "6.5.4",
+            "zone.js": "0.10.2"
+          },
+          files: {
+            "/.angular-cli.json": {
+              code: '{\n    "apps": [{\n        "root": "src",\n        "outDir": "dist",\n        "assets": ["assets", "favicon.ico"],\n        "index": "index.html",\n        "main": "main.ts",\n        "polyfills": "polyfills.ts",\n        "prefix": "app",\n        "styles": ["styles.css"],\n        "scripts": [],\n        "environmentSource": "environments/environment.ts",\n        "environments": {\n            "dev": "environments/environment.ts",\n            "prod": "environments/environment.prod.ts"\n        }\n    }]\n}'
+            },
+            "/src/typings.d.ts": {
+              code: '/* SystemJS module definition */\ndeclare var module: NodeModule;\ninterface NodeModule {\n    id: string;\n}'
+            },
+            "/src/styles.css": {
+              code: '/* You can add global styles to this file, and also import other style files */\n\nhtml,\nbody {\n  font-family: sans-serif;\n}'
+            },
+            "/src/polyfills.ts": {
+              code: '/**\n * This file includes polyfills needed by Angular and is loaded before the app.\n * You can add your own extra polyfills to this file.\n *\n * This file is divided into 2 sections:\n *   1. Browser polyfills. These are applied before loading ZoneJS and are sorted by browsers.\n *   2. Application imports. Files imported after ZoneJS that should be loaded before your main\n *      file.\n *\n * The current setup is for so-called "evergreen" browsers; the last versions of browsers that\n * automatically update themselves. This includes Safari >= 10, Chrome >= 55 (including Opera),\n * Edge >= 13 on the desktop, and iOS 10 and Chrome on mobile.\n *\n * Learn more in https://angular.io/docs/ts/latest/guide/browser-support.html\n */\n\n/***************************************************************************************************\n * BROWSER POLYFILLS\n */\n\n/** IE9, IE10 and IE11 requires all of the following polyfills. **/\n// import \'core-js/es6/symbol\';\n// import \'core-js/es6/object\';\n// import \'core-js/es6/function\';\n// import \'core-js/es6/parse-int\';\n// import \'core-js/es6/parse-float\';\n// import \'core-js/es6/number\';\n// import \'core-js/es6/math\';\n// import \'core-js/es6/string\';\n// import \'core-js/es6/date\';\n// import \'core-js/es6/array\';\n// import \'core-js/es6/regexp\';\n// import \'core-js/es6/map\';\n// import \'core-js/es6/weak-map\';\n// import \'core-js/es6/set\';\n\n/** IE10 and IE11 requires the following for NgClass support on SVG elements */\n// import \'classlist.js\';  // Run `npm install --save classlist.js`.\n\n/** IE10 and IE11 requires the following for the Reflect API. */\n// import \'core-js/es6/reflect\';\n\n/** Evergreen browsers require these. **/\n// Used for reflect-metadata in JIT. If you use AOT (and only Angular decorators), you can remove.\nimport "core-js/proposals/reflect-metadata";\n\n/**\n * Required to support Web Animations `@angular/platform-browser/animations`.\n * Needed for: All but Chrome, Firefox and Opera. http://caniuse.com/#feat=web-animation\n **/\n// import \'web-animations-js\';  // Run `npm install --save web-animations-js`.\n\n/***************************************************************************************************\n * Zone JS is required by default for Angular itself.\n */\nimport "zone.js/dist/zone"; // Included with Angular CLI.\n\n/***************************************************************************************************\n * APPLICATION IMPORTS\n */'
+            },
+            "/src/main.ts": {
+              code: 'import { enableProdMode } from "@angular/core";\nimport { platformBrowserDynamic } from "@angular/platform-browser-dynamic";\n\nimport { AppModule } from "./app/app.module";\nimport { environment } from "./environments/environment";\n\nif (environment.production) {\n  enableProdMode();\n}\n\nplatformBrowserDynamic()\n  .bootstrapModule(AppModule)\n  .catch(err => console.log(err));\n'
+            },
+            "/src/index.html": {
+              code: '<!doctype html>\n<html lang="en">\n\n<head>\n  <meta charset="utf-8">\n  <title>Angular</title>\n  <base href="/">\n\n <meta name="viewport" content="width=device-width, initial-scale=1">\n  <link rel="icon" type="image/x-icon" href="favicon.ico">\n</head>\n\n<body>\n <app-root></app-root>\n</body>\n\n</html>'
+            },
+            "/src/environments/environment.prod.ts": {
+              code: 'export const environment = {\n  production: true\n};\n'
+            },
+            "/src/environments/environment.ts": {
+              code: '// The file contents for the current environment will overwrite these during build.\n// The build system defaults to the dev environment which uses `environment.ts`, but if you do\n// `ng build --env=prod` then `environment.prod.ts` will be used instead.\n// The list of which env maps to which file can be found in `.angular-cli.json`.\n\nexport const environment = {\n  production: false\n};\n'
+            },
+            "/src/app/app.component.css": {
+              code: 'div {\n  text-align: center;\n}\n'
+            },
+            "/src/app/app.component.html": {
+              code: '<!--The content below is only a placeholder and can be replaced.-->\n<div>\n  <h1>\n    Welcome to {{ title }}!\n  </h1>\n  <img\n    width="300"\n    alt="Angular Logo"\n    src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTAgMjUwIj4KICAgIDxwYXRoIGZpbGw9IiNERDAwMzEiIGQ9Ik0xMjUgMzBMMzEuOSA2My4ybDE0LjIgMTIzLjFMMTI1IDIzMGw3OC45LTQzLjcgMTQuMi0xMjMuMXoiIC8+CiAgICA8cGF0aCBmaWxsPSIjQzMwMDJGIiBkPSJNMTI1IDMwdjIyLjItLjFWMjMwbDc4LjktNDMuNyAxNC4yLTEyMy4xTDEyNSAzMHoiIC8+CiAgICA8cGF0aCAgZmlsbD0iI0ZGRkZGRiIgZD0iTTEyNSA1Mi4xTDY2LjggMTgyLjZoMjEuN2wxMS43LTI5LjJoNDkuNGwxMS43IDI5LjJIMTgzTDEyNSA1Mi4xem0xNyA4My4zaC0zNGwxNy00MC45IDE3IDQwLjl6IiAvPgogIDwvc3ZnPg=="\n  />\n</div>\n'
+            },
+            "/src/app/app.component.ts": {
+              code: 'import { Component } from "@angular/core";\n\n@Component({\n  selector: "app-root",\n  templateUrl: "./app.component.html",\n  styleUrls: ["./app.component.css"]\n})\nexport class AppComponent {\n  title = "GUVI";\n}\n'
+            },
+            "/src/app/app.module.ts": {
+              code: 'import { BrowserModule } from "@angular/platform-browser";\nimport { NgModule } from "@angular/core";\n\nimport { AppComponent } from "./app.component";\n\n@NgModule({\n  declarations: [AppComponent],\n  imports: [BrowserModule],\n  providers: [],\n  bootstrap: [AppComponent]\n})\nexport class AppModule {}\n'
+            }
+          },
+          entry: "/src/main.ts"
+        },
+        testing: {
+          files: {
+          "/index.html": {
+            code: ""
+          },
+          "/index.js": {
+            code: ""
+          },
+        '/package.json': {
+            code: JSON.stringify(
+          {
+            "name": "static",
+            "version": "1.0.0",
+            "description": "This is a static template with no bundling",
+            "main": "index.html",
+            "scripts": {
+              "start": "serve",
+              "build": "echo This is a static template, there is no bundler or bundling involved!"
+            },
+            "repository": {
+              "type": "git",
+              "url": "git+https://github.com/codesandbox-app/static-template.git"
+            },
+            "keywords": [
+              "static",
+              "template",
+              "codesandbox"
+            ],
+            "author": "Ives van Hoorne",
+            "license": "MIT",
+            "bugs": {
+              "url": "https://github.com/codesandbox-app/static-template/issues"
+            },
+            "homepage": "https://github.com/codesandbox-app/static-template#readme",
+            "devDependencies": {
+              "serve": "^11.2.0"
+            }
+          },
+          null,
+          2
+        ),
+        }
+      },
+      entry: "/index.html"
+        }
+      };
+    }
+    catch(error){
+      // console.log(error);
+    }
+    return templateObject[template];
+  }
+
+  initializeFileTree(){
+    try{
+      let fileTreeObject = this.getFileTree(manager.sandboxInfo.files, manager.sandboxInfo.entry);
+      let tree = $("#file-tree").jstree({
+        core: {
+          data: fileTreeObject.data
+        }
+      }).on("ready.jstree", function(){
+        $(this).jstree('select_node', fileTreeObject.selectedNode);
+      })
+      window.tree = tree;
+    }
+    catch(error){
+      // console.log(error);
+    }
+  }
+
+  getFileTree(fileObject, selectedPath){
+    let fileTree = [];
+    let uniqueIds = [];
+    let classObj = this;
+    let selectedNode = false;
+    selectedPath = (selectedPath[0] === "/") ? selectedPath.slice(1) : selectedPath;
+    try{
+      for(let filePath in fileObject){
+        filePath = (filePath[0] === "/") ? filePath.slice(1) : filePath;
+        let nodes = filePath.split("/");
+        nodes.map(function(eachNode, nodeIndex){
+          let parent = (nodeIndex === 0) ? "#" : ("node-" + (nodes[nodeIndex - 1]) + "-level-" + (nodeIndex - 1) + "-parent-" + ((nodeIndex - 2 < 0) ? "#" : nodes[nodeIndex - 2]));
+          let uniqueIdentifier = "node-" + eachNode + "-level-" + nodeIndex + "-parent-" + (nodeIndex === 0 ? "#" : nodes[nodeIndex - 1]);
+          if(selectedPath === filePath){
+            selectedNode = uniqueIdentifier;
+          }
+          if(!uniqueIds.includes(uniqueIdentifier)){
+            fileTree.push({
+              id: uniqueIdentifier,
+              parent: parent,
+              text: eachNode,
+              data: "/" + filePath
+            });
+            uniqueIds.push(uniqueIdentifier);
+          }
+        });
+      }
+    }
+    catch(error){
+      // console.log(error);
+    }
+    return {data: fileTree, selectedNode: selectedNode};
+  }
+
+  setEditorSource(filePath){
+    try{
+      let sourceCode = manager.sandboxInfo.files[filePath].code;
+      editor.setValue(sourceCode);
+    }
+    catch(error){
+      // console.log(error);
+    }
+  }
+
+  updateFiles(){
+    try{
+      let nodeData = $("#file-tree").jstree("get_selected", "full");
+      let selectedFilePath = "";
+      if(nodeData[0]){
+        selectedFilePath = nodeData[0].data;
+      }
+      else{
+        let tabNode = $(".tabSwitch .active");
+        selectedFilePath = tabNode.data("filepath");
+      }
+      let sandboxInfo = manager.sandboxInfo;
+      let codeUpdated = sandboxInfo.files[selectedFilePath].editorInstance.getValue();
+      if(sandboxInfo.files[selectedFilePath].code !== codeUpdated){
+        sandboxInfo.files[selectedFilePath].code = codeUpdated;
+        manager.updatePreview(sandboxInfo);
+      }
+      this.updateLocalCode();
+    }
+    catch(error){
+      // console.log(error)
+    }
+  }
+
+  updateLocalCode(){
+    try{
+      let search = new URLSearchParams(document.location.search.substring(1));
+      let concept= search.get("concept");
+      if(!concept){
+        window.location.href = "webkata.html"; //need to be main page
+      }
+      let currentQuestionId = authorize.getSession("webkataQuestionId:" + concept);
+      if(!currentQuestionId || currentQuestionId === ""){
+        window.location.href = "webkata-library.html?concept=" + concept;
+      }
+      let questionSetup = $.extend(true, {}, manager.sandboxInfo);
+      for(let filePath in questionSetup.files){
+        if("editorInstance" in questionSetup.files[filePath]){
+          delete questionSetup.files[filePath].editorInstance;
+        }
+      }
+      let sessionKey = "webkata:" + concept + ":" + currentQuestionId + ":questionSetup";
+      authorize.setSession(sessionKey, JSON.stringify(questionSetup));
+    }
+    catch(error){
+      // console.log(error);
+    }
+  }
+
+  renderFileTabs(){
+    try{
+      let tabContent = "";
+      let tabNode = $("#fileTab");
+      let editorContent = "";
+      let editorsNode = $("#editors");
+      for(let eachFile in manager.sandboxInfo.files){
+        tabContent += '<li class="nav-item tabSwitch mx-0"><a id="' + (eachFile + "-tab") + '" class="text-white nav-link custom-tab px-3 py-2 ' + ((manager.sandboxInfo.entry === eachFile) ? "active" : "")  + '" href="#' + eachFile + '" data-filepath="' + eachFile + '" data-toggle="tab" role="tab" aria-controls="' + eachFile + '" aria-selected="' + ((manager.sandboxInfo.entry === eachFile) ? true : false) + '"><p class="m-0">' + manager.sandboxInfo.files[eachFile].name + '</p></a></li>';
+        editorContent += '<div class="' + ((manager.sandboxInfo.entry === eachFile) ? "tab-pane show active fill-vh-editor" : "tab-pane fill-vh-editor") + '" id="' + eachFile + '" role="tabpanel" aria-labelledby="' + (eachFile + "-tab") + '"></div>';
+      }
+      tabNode.html(tabContent);
+      editorsNode.html(editorContent);
+    }
+    catch(error){
+      // console.log(error);
+    }
+  }
+
+  initializeSplit(){
+    try{
+      let bodyWidth = $("body").width();
+      let instance = Split(['#split-block-one', '#split-block-two'], {
+        sizes: (bodyWidth < 768) ? [90, 10] : [60, 40],
+        gutterSize: 10,
+        minSize: (bodyWidth < 768) ? 0 : 350,
+        direction: "horizontal",
+        gutterAlign: "right",
+        onDrag: function(size){
+          $("#questionModal").css("width", $("#split-block-one").width());
+          for(let filePath in manager.sandboxInfo.files){
+            if("editorInstance" in manager.sandboxInfo.files[filePath]){
+              manager.sandboxInfo.files[filePath].editorInstance.resize();
+            }
+          }
+        }
+      });
+      window.splitInstance = instance;
+    }
+    catch(error){
+      // console.log(error);
+    }
+  }
+
+  renderQuestion(questionObject){
+    try{
+      let search = new URLSearchParams(document.location.search.substring(1));
+      let concept= search.get("concept");
+      $(".conceptName").text(' ' + concept + ' ');
+      $(".number-id").text(questionObject.virtualId);
+      $("#questionIdName").text(questionObject.virtualId + ". " + questionObject.questionName);
+      $("#question").text(questionObject.question);
+      // $("#conceptQuestionId").text(concept + " - " + questionObject.virtualId);
+      $("#conceptQuestionId").text(questionObject.virtualId + ". " + questionObject.questionName);
+      $("#questionModal").css("width", $("#split-block-one").width());
+      $("#questionModal").collapse("show");
+    }
+    catch(error){
+      // console.log(error);
+    }
+  }
+
+  updateSessions(questionId){
+    try{
+      let search = new URLSearchParams(document.location.search.substring(1));
+      let concept = search.get("concept");
+      authorize.setSession("webkataQuestionId:" + concept, questionId);
+    }
+    catch(error){
+      // console.log(error);
+    }
+  }
+
+  handleNavigation(navigationDetails){
+    try{
+      if(navigationDetails.isFirstQuestion){
+        $("#previousQuestion").hide();
+      }
+      else{
+        $("#previousQuestion").show();
+      }
+      if(navigationDetails.isLastQuestion){
+        $("#nextQuestion").hide();
+      }
+      else{
+        $("#nextQuestion").show();
+      }
+    }
+    catch(error){
+      // console.log(error);
+    }
+  }
+
+  attachFiles(questionSetup){
+    try{
+      let frameElement = this.getStaticFrame(questionSetup.files);
+        let manager = {
+          sandboxInfo: {
+            files: questionSetup.files,
+            entry: questionSetup.entry
+          },
+          updatePreview: this.staticUpdate,
+          iframe: frameElement
+        }
+        window.manager = manager;
+    }
+    catch(error){
+      // console.log(error);
+    }
+  }
+
+  storeData(data){
+    try{
+      let storageElement = $("body");
+      storageElement.data(data.questionObject.questionId.toString(), data);
+    }
+    catch(error){
+      // console.log(error);
+    }
+  }
+
+  runUnitTests($questionId){
+    let storageElement = $("body");
+    let questionResponse = storageElement.data($questionId.toString());
+    let unitTests = questionResponse.questionObject.unitTests;
+    let classObj = this;
+    let testOutput = [];
+    try{
+      unitTests.map(function(eachTest, eachKey){
+        let evaluatedResult = classObj.evaluateTest(eachTest.testExpression);
+        testOutput[eachKey] = evaluatedResult;
+      });
+    }
+    catch(error){
+      // console.log(error);
+    }
+    return testOutput;
+  }
+
+  evaluateTest(testExpression){
+    let result = "";
+    try{
+      testExpression = testExpression.replace(/{{frameWindow}}/g, 'document.querySelector("#preview-container iframe").contentWindow');
+      result = Function("document", "return " + testExpression)(document);
+    }
+    catch(error){
+      return result;
+    }
+    return result;
+  }
+
+  getQuestionSetup(){
+    let questionSetup = $.extend(true, {}, manager.sandboxInfo);
+    try{
+      for(let filePath in questionSetup.files){
+        if("editorInstance" in questionSetup.files[filePath]){
+          delete questionSetup.files[filePath].editorInstance;
+        }
+      }
+    }
+    catch(error){
+      // console.log(error);
+    }
+    return questionSetup;
+  }
+
+  renderPointsModal(points){
+    let modalId = $("#pointsModal");
+    const modalMarkup = `<div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-body d-flex flex-column align-items-center">
+          <div class="point-container d-flex align-items-center">
+            <span class="geek-icon d-flex mr-2"></span>
+            <strong>+${points} Geekoins</strong>
+          </div>
+          <p class="message text-center">
+            Practice Makes Perfect—and Geekoins Make It Even Better!
+          </p>
+          <p class="text-center description mb-0">You did it! <strong>${points} Geekoins</strong> added to your balance. You can use it to claim exciting rewards in the Rewards section!"</p>
+          <br>
+          <div class="d-flex justify-content-center">
+            <a id="startPreassess" class="btn mr-3" href="/rewards/">Explore Rewards</a>
+            <button id="startPreassess" class="btn btn-primary" data-dismiss="modal">Continue</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+    modalId.html(modalMarkup);
+    modalId.modal({
+      backdrop : "static",
+      keyboard : false
+    });
+    this.updateLocalPoints(points);
+  }
+
+  updateLocalPoints(points){
+    let localPoints = authorize.getSession("userpoints");
+    if(localPoints != ""){
+      let updatedPoints = parseInt(localPoints) + points;
+      localStorage.setItem("userpoints", updatedPoints)
+      $(".experience > span").html(updatedPoints);
+    }
+  }
+
+  renderEvaluationDetails(data){
+    try{
+      let resultMarkUp = "";
+      data.result.map(function(eachResult, eachKey){
+        if(eachResult.passed){
+          resultMarkUp += '<div class="d-flex align-items-center p-2"><i class="fas fa-check-circle question-success pr-2"></i><h6 class="m-0 font-weight-bold">Private Test Case ' + (eachKey + 1) + ' - Passed</h6></div>';
+        }
+        else{
+          resultMarkUp += '<div class="d-flex align-items-center p-2"><i class="fas fa-times-circle question-error pr-2"></i><h6 class="m-0 font-weight-bold">Private Test Case ' + (eachKey + 1) + ' - Failed</h6></div>';
+        }
+      });
+      $("#resultModalBody").html(resultMarkUp);
+      $("#resultModal").modal("show");
+    }
+    catch(error){
+      // console.log(error);
+    }
+  }
+
+  renderSlider(message, passedAllTestCase){
+    try{
+      let notice = {
+        content: message,
+        showCountdown: true,
+        delayOnHover: true,
+        animation: "tada",
+        offset: {
+          y: 50
+        },
+        responsiveWidth: true,
+        audio: "audio/notification/plucky"
+      };
+      new jBox('Notice', notice);
+      if(!passedAllTestCase){
+        $(".jBox-Notice .jBox-content").css({"background-color":"#ff4136","color":"#ffffff"});
+      }
+      else{
+        $(".jBox-Notice .jBox-content").css({"background-color":"#09e176","color":"#ffffff"});
+      }
+    }
+    catch(error){
+      // console.log(error);
+    }
+  }
+
+  finishLoading(){
+    try{
+      $("main").removeClass("loading");
+    }
+    catch(error){
+      console.log(error);
+    }
+  }
+
+}
+
+const isScrolledIntoView = (elem) => {
+  const docViewTop = $(window).scrollTop();
+  const docViewBottom = docViewTop + $(window).height();
+
+  const elemTop = $(elem).offset().top;
+  const elemBottom = elemTop + $(elem).height();
+
+  return ((elemBottom <= docViewBottom) && (elemTop >= docViewTop));
+};
+
+let validateEventTriggerFlag = 0;
+$(window).on('scroll', () => {
+  if (isScrolledIntoView('#checkQuestion') && validateEventTriggerFlag === 0) {
+    authorize.netCoreEvent('Webkata_ValidateSubmit_Viewed');
+    validateEventTriggerFlag = 1;
+  }
+});
+
+$(document).ready(function(){
+  authorize.netCoreEvent('webkata_Editer_Viewed');
+  sidebar.init();
+  authorize.loginCheck();
+  $('[data-toggle="tooltip"]').tooltip();
+  let classObj = new Codesk();
+  let search = new URLSearchParams(document.location.search.substring(1));
+  let concept= search.get("concept");
+  let maxInterval = 10;
+	let currentInterval = 0;
+  commonManager.netEmail = authorize.getSession('mail')? authorize.getSession("mail") : "" ;
+  commonManager.netMobile = authorize.getSession('mobile')? authorize.getSession("mobile") : "" ;
+  commonManager.netName = authorize.getSession('cusername')? authorize.getSession("cusername") : "" ;
+	let interval = setInterval(function(){
+		try {
+			if (smartech) {
+				authorize.smartTechCEEvent('practise_start',{
+					"practisename": "Webkata",
+					"subject": concept,
+				}, {
+          email: commonManager.netEmail,
+          mobile: commonManager.netMobile,
+          NAME: commonManager.netName
+        });
+				clearInterval(interval);
+			} else if (currentInterval > maxInterval) {
+				clearInterval(interval);
+			}
+			currentInterval += 1;
+		} catch (error) {
+			// console.log(error);
+		}
+	}, 1000);
+  if(!concept || concept === ""){
+    window.location.href = "webkata.html"; //need to be main page
+  }
+  let currentQuestionId = authorize.getSession("webkataQuestionId:" + concept);
+  if(!currentQuestionId || currentQuestionId === ""){
+    window.location.href = "webkata-library.html?concept=" + concept;
+  }
+
+  authorize.ajax({type : "getQuestionById", questionId: Number(currentQuestionId), conceptId: concept}, "webkataOperations", function(data){
+    classObj.finishLoading();
+    data = JSON.parse(data);
+    if(data.status === "success"){
+      let sessionKey = "webkata:" + concept + ":" + currentQuestionId + ":questionSetup";
+      let sessionSetup = authorize.getSession(sessionKey);
+      let questionSetup = ((sessionSetup && sessionSetup !== "") ? JSON.parse(sessionSetup) : false) || (data.submissionDetails.isSubmitted ? data.submissionDetails.submissionSetup : false) || data.questionObject.questionSetup;
+      classObj.initializeBundler(["HTML", "CSS", "JS", "BOOTSTRAP"].includes(concept) ? "static" : concept, questionSetup);
+      classObj.renderFileTabs();
+      classObj.initializeEditors();
+      classObj.initializeSplit();
+      classObj.renderQuestion(data.questionObject);
+      classObj.handleNavigation(data.navigationDetails);
+      classObj.storeData(data);
+      // classObj.initializeFileTree();
+
+      // $("#file-tree").on("select_node.jstree", function(event, data){
+      //   classObj.setEditorSource(data.node.data);
+      // });
+
+      for(eachFile in manager.sandboxInfo.files){
+        manager.sandboxInfo.files[eachFile].editorInstance.on("change", function(event){
+          if(manager.delayedChange){
+            clearTimeout(manager.delayedChange);
+          }
+          let delayedChange = setTimeout(function(){
+            classObj.updateFiles();
+          }, 500);
+          manager.delayedChange = delayedChange;
+        });
+      }
+
+      // $(document).on("click", ".tabSwitch a", function(){
+      //   $(this).tab("show");
+      //   classObj.setEditorSource($(this).data("filepath"));
+      // });
+
+      // manager.listener(function(event){
+      //   console.log(event);
+      // });
+    }
+    else if(data.status === "error"){
+      window.location.href = "webkata.html";
+    }
+  });
+
+  $(document).on("click", "#nextQuestion", function(){
+    let currentQuestionId = authorize.getSession("webkataQuestionId:" + concept);
+    if(!currentQuestionId || currentQuestionId === ""){
+      window.location.href = "webkata-library.html?concept=" + concept;
+    }
+    authorize.ajax({type : "getNextQuestion", currentQuestionId: Number(currentQuestionId), conceptId: concept}, "webkataOperations", function(data){
+      data = JSON.parse(data);
+      if(data.status === "success"){
+        let sessionKey = "webkata:" + concept + ":" + currentQuestionId + ":questionSetup";
+        let sessionSetup = authorize.getSession(sessionKey);
+        let questionSetup = (data.submissionDetails.isSubmitted ? data.submissionDetails.submissionSetup : false) || data.questionObject.questionSetup;
+        classObj.attachFiles(questionSetup);
+        classObj.renderFileTabs();
+        classObj.initializeEditors();
+        classObj.renderQuestion(data.questionObject);
+        classObj.updateSessions(data.questionObject.questionId);
+        classObj.handleNavigation(data.navigationDetails);
+        classObj.storeData(data);
+        for(eachFile in manager.sandboxInfo.files){
+          manager.sandboxInfo.files[eachFile].editorInstance.on("change", function(event){
+            if(manager.delayedChange){
+              clearTimeout(manager.delayedChange);
+            }
+            let delayedChange = setTimeout(function(){
+              classObj.updateFiles();
+            }, 500);
+            manager.delayedChange = delayedChange;
+          });
+        }
+      }
+    });
+  });
+
+  $(document).on("click", "#previousQuestion", function(){
+    let currentQuestionId = authorize.getSession("webkataQuestionId:" + concept);
+    if(!currentQuestionId || currentQuestionId === ""){
+      window.location.href = "webkata-library.html?concept=" + concept;
+    }
+    authorize.ajax({type : "getPreviousQuestion", currentQuestionId: Number(currentQuestionId), conceptId: concept}, "webkataOperations", function(data){
+      data = JSON.parse(data);
+      if(data.status === "success"){
+        let sessionKey = "webkata:" + concept + ":" + currentQuestionId + ":questionSetup";
+        let sessionSetup = authorize.getSession(sessionKey);
+        let questionSetup = (data.submissionDetails.isSubmitted ? data.submissionDetails.submissionSetup : false) || data.questionObject.questionSetup;
+        classObj.attachFiles(questionSetup);
+        classObj.renderFileTabs();
+        classObj.initializeEditors();
+        classObj.renderQuestion(data.questionObject);
+        classObj.updateSessions(data.questionObject.questionId);
+        classObj.handleNavigation(data.navigationDetails);
+        classObj.storeData(data);
+        for(eachFile in manager.sandboxInfo.files){
+          manager.sandboxInfo.files[eachFile].editorInstance.on("change", function(event){
+            if(manager.delayedChange){
+              clearTimeout(manager.delayedChange);
+            }
+            let delayedChange = setTimeout(function(){
+              classObj.updateFiles();
+            }, 500);
+            manager.delayedChange = delayedChange;
+          });
+        }
+      }
+    });
+  });
+
+  $(document).on("click", "#viewAllQuestions", function(){
+    window.location.href = "webkata-library.html?concept=" + concept;
+  });
+
+  $(document).on("click", "#checkQuestion", function(){
+    authorize.netCoreEvent('Webkata_Validate_clicked');
+    try {
+      authorize.smartTechCEEvent('validate_clicked', {
+        practisename: "Webkata"
+      }, {
+        email: commonManager.netEmail,
+        mobile: commonManager.netMobile,
+        NAME: commonManager.netName
+      });
+    } catch (error) {
+      console.log(error);
+    }
+    let currentQuestionId = authorize.getSession("webkataQuestionId:" + concept);
+    if(!currentQuestionId || currentQuestionId === ""){
+      window.location.href = "webkata-library.html?concept=" + concept;
+    }
+    let testResult = classObj.runUnitTests(currentQuestionId);
+    authorize.ajax({type: "checkTestCases", currentQuestionId: currentQuestionId, testResult: testResult}, "webkataOperations", function(data){
+      data = JSON.parse(data);
+      if(data.status === "success"){
+        classObj.renderEvaluationDetails(data.evaluatedResult);
+      }
+      else{
+
+      }
+    });
+  });
+
+  $(document).on("click", "#submitQuestion", function(){
+    authorize.netCoreEvent("Webkata_Submit_Clicked")
+    let currentQuestionId = authorize.getSession("webkataQuestionId:" + concept);
+    if(!currentQuestionId || currentQuestionId === ""){
+      window.location.href = "webkata-library.html?concept=" + concept;
+    }
+    let testResult = classObj.runUnitTests(currentQuestionId);
+    let questionSetup = classObj.getQuestionSetup();
+    authorize.ajax({type: "submitQuestion", currentQuestionId: currentQuestionId, testResult: testResult, questionSetup: questionSetup, conceptId: concept}, "webkataOperations", function(data){
+      data = JSON.parse(data);
+      if(data.status === "success"){
+
+        try {
+          authorize.smartTechCEEvent('practice_submission',{
+            "practicename": "Webkata",
+            "subject": concept
+          }, {
+            email: commonManager.netEmail,
+            mobile: commonManager.netMobile,
+            NAME: commonManager.netName
+          });
+        } catch (error) {
+          console.log(error);
+        }
+        if(data.pointsDetails.addedPoints > 0){
+          classObj.renderPointsModal(data.pointsDetails.addedPoints);
+        }
+        else{
+          classObj.renderSlider(data.pointsDetails.submissionStatus, data.evaluationDetails.passedAllTestCase);
+        }
+      }
+      else{
+
+      }
+    });
+  });
+
+  $(document).on("click", ".share-link", function(){
+    $("#resultModal").modal("hide");
+    authorize.share_modal();
+  });
+
+});
